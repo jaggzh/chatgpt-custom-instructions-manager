@@ -18,11 +18,15 @@ Manages folders of about.txt and reply.txt for named instruction sets
 ## Usage
 
 1. cgptinst add {name-of-instruction-set}
+
    eg.  cgptinst add pycoding
+
    (prompts for text for about-me and reply-instructions)
 
 1. cgptinst list [optional pattern -- this might not be working]
+
    Will list sets, showing a preview as you arrow through
 
 1. cgptinst rm [optional pattern -- this might not be working]
+
    Like list, but prompts to remove the selected set
