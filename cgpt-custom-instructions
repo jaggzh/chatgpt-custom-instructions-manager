@@ -1,0 +1,91 @@
+#!/bin/bash
+# File: cgpt-custom-instructions
+# Alias: cgptinst
+# Manage chatgpt custom instruction sets (setname)
+#   Each instruction-set is "$dir_cuinst"/{setname}/{about.txt,reply.txt}
+# Usage:
+# cgptinst [opt] [command [args]] [opt]  (default is 'list')
+# (Opt/Options can appear anywhere on line)
+# Commands: 
+#   add [setname]
+#     Prompts user for:
+#       Add 'chatgpt about text (. on blank line to finish)'
+#       Add 'chatgpt reply text (. on blank line to finish)'
+#     (Strips trailing . line)
+#     Creates {date}-{setname}/{about.txt and reply.txt}
+#   list [pattern]
+#     Lists folders in $dir_cuinst using fzf
+#     fzf preview pane shows:
+#       About: ... | head -c $prev_chars_short | oneline
+#       Reply: ... | head -c $prev_chars_long | oneline
+#     'pattern' is an initial pattern to fzf to restrict search
+#     Selecting item in fzf will return just the setname
+#       * Use read -n 1 for prompts
+#       With successful fzf return:
+#         Prompt user "Copy Reply to clipboard (y/enter. q to quit):"
+#           use xclip to copy to cb
+#         Prompt user "Copy About to clipboard (y/enter. q to quit):"
+#           use xclip to copy to cb
+#   rm [pattern]
+#     Like list, but final result prompts "Remove: {full path}? (y/N)"
+#       * Use read -n 1 for prompts
+#       * (default, if not y/Y, is do not remove)
+# * Keep var names short
+# * Don't comment code or provide post discussion
+# * Tab-indent code
+ourdir="$(dirname "$(readlink -f "$0")")"
+ourname="${ourdir##*/}"
+. "$ourdir"/cgpt-settings.sh
+# from ^ dir_cuinst=/path/to/custom-instructions
+
+add_set() {
+    sn=$1
+    echo "Add 'chatgpt about text; type '.' to finish:"
+    about_txt=""
+    while read -r line; do
+        [[ "$line" == "." ]] && break
+        about_txt+="$line"$'\n'
+    done
+    echo "Add 'chatgpt reply text; type '.' to finish:"
+    reply_txt=""
+    while read -r line; do
+        [[ "$line" == "." ]] && break
+        reply_txt+="$line"$'\n'
+    done
+    setname=$(date +%Y%m%d%H%M%S)-${sn:-default}
+    mkdir -p "$dir_cuinst/$setname"
+    echo -n "$about_txt" > "$dir_cuinst/$setname/about.txt"
+    echo -n "$reply_txt" > "$dir_cuinst/$setname/reply.txt"
+}
+list_sets() {
+    cat <<EOT
+      fzf "${fzfopts[@]}" --preview="echo About:; head -c $prev_chars_short \"$dir_cuinst/{}/about.txt\" | tr -s '[:space:]' ' '; echo; echo Reply:; head -c $prev_chars_long \"$dir_cuinst/{}/reply.txt\" | tr -s '[:space:]' ' '")
+EOT
+    setname=$(ls "$dir_cuinst" | fzf "${fzfopts[@]}" --preview="echo About:; head -c $prev_chars_short \"$dir_cuinst/\"{}\"/about.txt\" | tr -s '[:space:]' ' '; echo; echo Reply:; head -c $prev_chars_long \"$dir_cuinst/\"{}\"/reply.txt\" | tr -s '[:space:]' ' '")
+    [[ -z "$setname" ]] && return
+
+    read -n 1 -p "Copy About to clipboard (y/enter. q to quit): " choice
+    echo
+    [[ "$choice" == "q" ]] && return
+    [[ "$choice" == "y" ]] && cat "$dir_cuinst/$setname/about.txt" | xclip -selection clipboard
+
+    read -n 1 -p "Copy Reply to clipboard (y/enter. q to quit): " choice
+    echo
+    [[ "$choice" == "q" ]] && return
+    [[ "$choice" == "y" ]] && cat "$dir_cuinst/$setname/reply.txt" | xclip -selection clipboard
+}
+
+rm_set() {
+    setname=$(ls "$dir_cuinst" | fzf)
+    [[ -z "$setname" ]] && return
+    read -n 1 -p "Remove: $dir_cuinst/$setname? (y/N) " choice
+    [[ "$choice" == "y" ]] && rm -rf "$dir_cuinst/$setname"
+}
+
+cmd=$1; shift
+case "$cmd" in
+    add) add_set "$@" ;;
+    list) list_sets ;;
+    rm) rm_set ;;
+    *) echo "Usage: $0 {add|list|rm}"; exit 1 ;;
+esac
