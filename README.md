@@ -12,6 +12,7 @@ Manages folders of about.txt and reply.txt for named instruction sets
     1. edit the path to the place to store your files
 
 ## Dependencies
+1. Written in `bash`
 1. Install `fzf`
 
 ## Usage
